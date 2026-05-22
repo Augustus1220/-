@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>嵌入式系统 - 刷题</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --success: #2ECC71;
+            --error: #E74C3C;
+            --bg: #f4f6f8;
+            --card: #ffffff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: #333;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 650px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        h2 { margin-top: 0; color: var(--primary); text-align: center; }
+        
+        /* 文件上传区 */
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            background: #f8fafc;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: block;
+            transition: 0.3s;
+        }
+        .upload-area:hover { background: #edf2f7; border-color: var(--primary); }
+        .upload-btn {
+            background: var(--primary); color: white;
+            padding: 12px 24px; border-radius: 6px; font-weight: bold;
+            display: inline-block; margin-top: 15px; pointer-events: none;
+        }
+        #file-input { display: none; }
+
+        /* 答题区 */
+        #quiz-page { display: none; }
+        .header { display: flex; justify-content: space-between; font-weight: bold; color: #718096; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #edf2f7;}
+        .question { font-size: 1.15em; font-weight: 600; line-height: 1.6; margin-bottom: 20px; word-break: break-all;}
+        
+        .option {
+            background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px;
+            padding: 15px; margin-bottom: 12px; cursor: pointer;
+            display: flex; align-items: center; transition: 0.2s;
+            font-size: 1.05em; line-height: 1.5;
+        }
+        .option:hover:not(.disabled) { background: #edf2f7; border-color: #cbd5e0; }
+        .option.correct { background: #eafaf1; border-color: var(--success); color: #27ae60; font-weight: bold; }
+        .option.wrong { background: #fdf2f0; border-color: var(--error); color: #c0392b; }
+        .option.disabled { pointer-events: none; }
+
+        .letter {
+            width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; margin-right: 15px; flex-shrink: 0;
+        }
+        .option.correct .letter { background: var(--success); color: white; }
+        .option.wrong .letter { background: var(--error); color: white; }
+
+        /* 控制区 */
+        .controls { display: flex; justify-content: space-between; margin-top: 25px; gap: 10px; }
+        .btn-nav {
+            padding: 14px 0; border: none; border-radius: 6px; font-size: 1.05em;
+            font-weight: bold; cursor: pointer; transition: 0.2s; text-align: center; display: flex; justify-content: center; align-items: center;
+        }
+        .btn-prev { background: #e2e8f0; color: #4a5568; flex: 1.2; }
+        .btn-prev:hover { background: #cbd5e0; }
+        .btn-menu { background: #f8fafc; color: #4a5568; border: 2px solid #e2e8f0; flex: 1; }
+        .btn-menu:hover { background: #edf2f7; border-color: #cbd5e0; }
+        .btn-next { background: var(--primary); color: white; flex: 1.8; box-shadow: 0 4px 6px rgba(74, 144, 226, 0.2);}
+        .btn-next:hover { background: #357ABD; transform: translateY(-1px);}
+        
+        #status-msg { text-align: center; margin-top: 10px; font-weight: bold; color: #718096; }
+
+        /* 题号导航弹窗面板 (底部抽屉样式) */
+        .nav-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-end;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .nav-content {
+            background: white; width: 100%; max-width: 650px; border-radius: 16px 16px 0 0;
+            padding: 20px; max-height: 75vh; display: flex; flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+        }
+        .nav-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;}
+        .nav-header h3 { margin: 0; color: var(--primary); }
+        .close-btn { font-size: 28px; cursor: pointer; color: #a0aec0; line-height: 1; padding: 0 10px;}
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 10px; overflow-y: auto; padding-bottom: 20px; }
+        .nav-item {
+            aspect-ratio: 1; display: flex; justify-content: center; align-items: center;
+            background: #f4f6f8; border-radius: 6px; cursor: pointer; font-weight: bold; color: #718096; font-size: 0.95em;
+        }
+        .nav-item.current { border: 2px solid var(--primary); background: #ebf8ff; color: var(--primary); }
+        .nav-item.correct { background: var(--success); color: white; border: none; }
+        .nav-item.wrong { background: var(--error); color: white; border: none; }
+
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card" id="setup-page">
+        <h2>嵌入式刷题</h2>
+        <label class="upload-area" for="file-input">
+            <div style="font-size: 1.2em; color: #2d3748;">点击选择 <b>题库.txt</b> 文件</div>
+            <div class="upload-btn">📂 选择本地文件</div>
+        </label>
+        <input type="file" id="file-input" accept=".txt, text/plain">
+        <div id="status-msg">等待导入题库...</div>
+    </div>
+
+    <div class="card" id="quiz-page">
+        <div class="header">
+            <span id="progress-text">1 / ?</span>
+            <span id="score-text">正确率: 0%</span>
+        </div>
+        <div class="question" id="question-text">题目加载中...</div>
+        <div id="options-container"></div>
+        <div class="controls">
+            <button class="btn-nav btn-prev" id="prev-btn" onclick="prevQuestion()">⬅ 上一题</button>
+            <button class="btn-nav btn-menu" id="menu-btn" onclick="toggleNav()">≡ 题号</button>
+            <button class="btn-nav btn-next" id="next-btn" onclick="nextQuestion()">下一题 ➔</button>
+        </div>
+    </div>
+</div>
+
+<div id="nav-modal" class="nav-modal" onclick="closeNavOutside(event)">
+    <div class="nav-content" onclick="event.stopPropagation()">
+        <div class="nav-header">
+            <h3>答题卡</h3>
+            <span class="close-btn" onclick="toggleNav()">×</span>
+        </div>
+        <div class="nav-grid" id="nav-grid"></div>
+    </div>
+</div>
+
+<script>
+    let questions = [];
+    let currentIndex = 0;
+    let rightCount = 0;
+    let answeredCount = 0;
+    let userAnswers = {};
+
+    const fileInput = document.getElementById('file-input');
+    const statusMsg = document.getElementById('status-msg');
+
+    // 监听文件加载
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        statusMsg.style.color = '#4A90E2';
+        statusMsg.innerText = "正在读取中，请稍候...";
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            let text = evt.target.result;
+            let success = extractQuestions(text);
+            
+            if (!success) {
+                statusMsg.innerText = "尝试自动修复编码乱码...";
+                const readerGBK = new FileReader();
+                readerGBK.onload = function(evtGBK) {
+                    let successGBK = extractQuestions(evtGBK.target.result);
+                    if (!successGBK) {
+                        statusMsg.style.color = '#E74C3C';
+                        statusMsg.innerText = "解析失败！请确保文件内容包含题目和选项。";
+                    }
+                };
+                readerGBK.readAsText(file, 'GBK');
+            }
+        };
+        reader.readAsText(file, 'UTF-8'); 
+    });
+
+    // 解析引擎
+    function extractQuestions(text) {
+        const lines = text.split(/\r?\n/);
+        let tempQuestions = [];
+        let currentQ = null;
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) continue;
+
+            let answerMatch = line.match(/^\s*(?:答案|答|正确答案|Answer)\s*[\.、：:]?\s*([A-D])/i);
+            if (answerMatch) {
+                if (currentQ) {
+                    currentQ.answer = answerMatch[1].toUpperCase();
+                    tempQuestions.push(currentQ);
+                    currentQ = null; 
+                }
+                continue;
+            }
+
+            let optionMatch = line.match(/^\s*(?:选项)?\s*([A-D])\s*[\.、：:]\s*(.*)/i);
+            if (optionMatch && currentQ) {
+                currentQ.options[optionMatch[1].toUpperCase()] = optionMatch[2];
+                continue;
+            }
+
+            let titleMatch = line.match(/^\s*(\d+)\s*[\.、：:]\s*(?:题目\s*[\.、：:]?)?\s*(.*)/i);
+            if (titleMatch) {
+                if (currentQ && Object.keys(currentQ.options).length > 0) {
+                    tempQuestions.push(currentQ);
+                }
+                currentQ = { question: titleMatch[2], options: {}, answer: '' };
+                continue;
+            }
+
+            if (currentQ) {
+                if (Object.keys(currentQ.options).length === 0) {
+                    currentQ.question += "<br>" + line;
+                } else {
+                    let keys = Object.keys(currentQ.options);
+                    currentQ.options[keys[keys.length - 1]] += "<br>" + line;
+                }
+            }
+        }
+
+        if (currentQ && Object.keys(currentQ.options).length > 0) {
+            tempQuestions.push(currentQ);
+        }
+
+        if (tempQuestions.length === 0) return false;
+
+        questions = tempQuestions;
+        document.getElementById('setup-page').style.display = 'none';
+        document.getElementById('quiz-page').style.display = 'block';
+        
+        currentIndex = 0;
+        rightCount = 0;
+        answeredCount = 0;
+        userAnswers = {};
+        
+        initNavGrid(); // 初始化答题卡矩阵
+        renderQuestion();
+        return true;
+    }
+
+    // 初始化答题卡方块
+    function initNavGrid() {
+        const grid = document.getElementById('nav-grid');
+        grid.innerHTML = '';
+        for (let i = 0; i < questions.length; i++) {
+            let div = document.createElement('div');
+            div.className = 'nav-item';
+            div.id = `nav-item-${i}`;
+            div.innerText = i + 1;
+            div.onclick = () => jumpTo(i);
+            grid.appendChild(div);
+        }
+    }
+
+    // 弹窗相关逻辑
+    function toggleNav() {
+        const modal = document.getElementById('nav-modal');
+        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        // 自动滚动到当前所在的题号
+        if(modal.style.display === 'flex') {
+            const curNav = document.getElementById(`nav-item-${currentIndex}`);
+            if(curNav) curNav.scrollIntoView({behavior: "smooth", block: "center"});
+        }
+    }
+    function closeNavOutside(e) {
+        if(e.target.id === 'nav-modal') toggleNav();
+    }
+    function jumpTo(index) {
+        currentIndex = index;
+        toggleNav();
+        renderQuestion();
+    }
+
+    // 渲染题目
+    function renderQuestion() {
+        const q = questions[currentIndex];
+        
+        document.getElementById('progress-text').innerText = `题目: ${currentIndex + 1} / ${questions.length}`;
+        document.getElementById('question-text').innerHTML = `${currentIndex + 1}. ${q.question}`;
+        
+        // 控制底部按钮显示状态
+        document.getElementById('prev-btn').style.visibility = currentIndex > 0 ? 'visible' : 'hidden';
+        document.getElementById('next-btn').innerText = currentIndex === questions.length - 1 ? "完成 ➔" : "下一题 ➔";
+
+        // 更新答题卡的蓝色当前题目标志
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('current'));
+        const curNav = document.getElementById(`nav-item-${currentIndex}`);
+        if(curNav) curNav.classList.add('current');
+
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+
+        const answeredLetter = userAnswers[currentIndex];
+
+        ['A', 'B', 'C', 'D'].forEach(letter => {
+            if (q.options[letter]) {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.id = `opt-${letter}`;
+                div.innerHTML = `<div class="letter">${letter}</div><div>${q.options[letter]}</div>`;
+                
+                if (answeredLetter) {
+                    div.classList.add('disabled');
+                    if (letter === q.answer) {
+                        div.classList.add('correct');
+                    } else if (letter === answeredLetter && letter !== q.answer) {
+                        div.classList.add('wrong');
+                    }
+                } else {
+                    div.onclick = () => selectOption(letter, q.answer);
+                }
+                
+                container.appendChild(div);
+            }
+        });
+    }
+
+    // 选择答案
+    function selectOption(selectedLetter, correctLetter) {
+        if (userAnswers[currentIndex]) return; 
+        
+        userAnswers[currentIndex] = selectedLetter;
+        answeredCount++;
+
+        const selectedDiv = document.getElementById(`opt-${selectedLetter}`);
+        const correctDiv = document.getElementById(`opt-${correctLetter}`);
+
+        document.querySelectorAll('.option').forEach(el => el.classList.add('disabled'));
+
+        // 更新答题卡颜色
+        const navItem = document.getElementById(`nav-item-${currentIndex}`);
+
+        if (selectedLetter === correctLetter) {
+            selectedDiv.classList.add('correct');
+            rightCount++;
+            if(navItem) navItem.classList.add('correct'); // 答题卡标绿
+        } else {
+            selectedDiv.classList.add('wrong');
+            if (correctDiv) correctDiv.classList.add('correct');
+            if(navItem) navItem.classList.add('wrong');   // 答题卡标红
+        }
+
+        let rate = Math.round((rightCount / answeredCount) * 100);
+        document.getElementById('score-text').innerText = `正确率: ${rate}%`;
+    }
+
+    function prevQuestion() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            renderQuestion();
+        }
+    }
+
+    function nextQuestion() {
+        if (currentIndex < questions.length - 1) {
+            currentIndex++;
+            renderQuestion();
+        } else {
+            let rate = answeredCount > 0 ? Math.round((rightCount / answeredCount) * 100) : 0;
+            alert(`太强了！你已看完全部 ${questions.length} 道题！\n🏆 当前正确率：${rate}%\n📝 可以点击“≡ 题号”查看你的错题卡哦！`);
+        }
+    }
+</script>
+
+</body>
+</html>
